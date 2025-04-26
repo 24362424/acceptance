@@ -1,0 +1,1282 @@
+<!DOCTYPE html><html lang="en"><head><meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://unpkg.com https://d3js.org https://threejs.org https://cdn.plot.ly https://stackpath.bootstrapcdn.com https://maps.googleapis.com https://cdn.tailwindcss.com https://ajax.googleapis.com https://kit.fontawesome.com https://cdn.datatables.net https://maxcdn.bootstrapcdn.com https://code.highcharts.com https://tako-static-assets-production.s3.amazonaws.com https://www.youtube.com https://fonts.googleapis.com https://fonts.gstatic.com https://pfst.cf2.poecdn.net https://puc.poecdn.net https://i.imgur.com https://wikimedia.org https://*.icons8.com https://*.giphy.com https://picsum.photos https://images.unsplash.com; frame-src 'self' https://www.youtube.com https://trytako.com; child-src 'self'; manifest-src 'self'; worker-src 'self'; upgrade-insecure-requests; block-all-mixed-content;">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Railway Maintenance Management Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#5D5CDE',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        .dark ::-webkit-scrollbar-track {
+            background: #333;
+        }
+        .dark ::-webkit-scrollbar-thumb {
+            background: #666;
+        }
+        
+        /* Cell styling */
+        .cell {
+            border: 1px solid #e5e7eb;
+            min-width: 120px;
+            padding: 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .dark .cell {
+            border-color: #4b5563;
+        }
+        
+        .header-cell {
+            background-color: #f3f4f6;
+            font-weight: 600;
+        }
+        
+        .dark .header-cell {
+            background-color: #374151;
+        }
+        
+        /* Form styling */
+        input, select, textarea {
+            background-color: white;
+            color: black;
+            border: 1px solid #d1d5db;
+            border-radius: 0.25rem;
+            padding: 0.5rem;
+            width: 100%;
+            font-size: 16px;
+        }
+        
+        .dark input, .dark select, .dark textarea {
+            background-color: #1f2937;
+            color: white;
+            border-color: #4b5563;
+        }
+        
+        /* Print styles */
+        @media print {
+            .no-print {
+                display: none;
+            }
+            body {
+                margin: 0;
+                padding: 0;
+                color: black;
+                background: white;
+            }
+            .print-content {
+                display: block !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 min-h-screen">
+    <!-- Dark mode detection -->
+    <script>
+        if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', event => {
+            if (event.matches) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        });
+    </script>
+
+    <div class="container mx-auto p-4">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-2xl font-bold text-center text-primary mb-4">Railway Maintenance Management Dashboard</h1>
+            
+            <!-- Tabs Navigation -->
+            <div class="flex flex-wrap mb-6 border-b border-gray-200 dark:border-gray-700">
+                <button onclick="showTab('dashboard')" id="dashboard-tab" class="px-4 py-2 font-medium text-primary border-b-2 border-primary">Dashboard</button>
+                <button onclick="showTab('wagon-data')" id="wagon-data-tab" class="px-4 py-2 font-medium text-gray-500 dark:text-gray-400 hover:text-primary">Wagon Data</button>
+                <button onclick="showTab('locomotive-data')" id="locomotive-data-tab" class="px-4 py-2 font-medium text-gray-500 dark:text-gray-400 hover:text-primary">Locomotive Data</button>
+                <button onclick="showTab('coach-data')" id="coach-data-tab" class="px-4 py-2 font-medium text-gray-500 dark:text-gray-400 hover:text-primary">Coach Data</button>
+                <button onclick="showTab('report')" id="report-tab" class="px-4 py-2 font-medium text-gray-500 dark:text-gray-400 hover:text-primary">Reports</button>
+            </div>
+            
+            <!-- Dashboard Tab -->
+            <div id="dashboard" class="tab-content">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="bg-blue-100 dark:bg-blue-900 p-4 rounded-lg shadow">
+                        <h3 class="font-bold mb-2">Total Wagon Maintenance</h3>
+                        <p class="text-3xl font-bold" id="wagon-count">0</p>
+                    </div>
+                    <div class="bg-green-100 dark:bg-green-900 p-4 rounded-lg shadow">
+                        <h3 class="font-bold mb-2">Total Locomotive Maintenance</h3>
+                        <p class="text-3xl font-bold" id="locomotive-count">0</p>
+                    </div>
+                    <div class="bg-yellow-100 dark:bg-yellow-900 p-4 rounded-lg shadow">
+                        <h3 class="font-bold mb-2">Total Coach Maintenance</h3>
+                        <p class="text-3xl font-bold" id="coach-count">0</p>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                        <h3 class="font-bold mb-4">Maintenance Status</h3>
+                        <div class="h-64">
+                            <canvas id="status-chart"></canvas>
+                        </div>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                        <h3 class="font-bold mb-4">Maintenance Type Distribution</h3>
+                        <div class="h-64">
+                            <canvas id="maintenance-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Data Entry Form -->
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-8">
+                    <h3 class="font-bold mb-4">Data Entry Form</h3>
+                    <form id="data-entry-form" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block mb-1">Entry Type</label>
+                            <select id="entry-type" class="w-full text-base" required="">
+                                <option value="">Select Type</option>
+                                <option value="wagon">Wagon</option>
+                                <option value="locomotive">Locomotive</option>
+                                <option value="coach">Coach</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block mb-1">Number</label>
+                            <input type="text" id="number" class="w-full text-base" required="">
+                        </div>
+                        <div>
+                            <label class="block mb-1">Type of Maintenance</label>
+                            <select id="maintenance-type" class="w-full text-base" required="">
+                                <option value="">Select Type</option>
+                                <option value="Routine">Routine</option>
+                                <option value="Preventive">Preventive</option>
+                                <option value="Corrective">Corrective</option>
+                                <option value="Overhaul">Overhaul</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block mb-1">Description</label>
+                            <input type="text" id="description" class="w-full text-base" required="">
+                        </div>
+                        <div>
+                            <label class="block mb-1">Fault</label>
+                            <input type="text" id="fault" class="w-full text-base" required="">
+                        </div>
+                        <div>
+                            <label class="block mb-1">Changed Spare Parts</label>
+                            <input type="text" id="spare-parts" class="w-full text-base">
+                        </div>
+                        <div>
+                            <label class="block mb-1">Status</label>
+                            <select id="status" class="w-full text-base" required="">
+                                <option value="">Select Status</option>
+                                <option value="Pending">Pending</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Rejected">Rejected</option>
+                            </select>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block mb-1">Remarks</label>
+                            <textarea id="remarks" class="w-full text-base" rows="2"></textarea>
+                        </div>
+                        <div class="md:col-span-3 flex justify-end">
+                            <button type="submit" class="bg-primary hover:bg-purple-700 text-white font-medium py-2 px-4 rounded">
+                                Save Data
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                
+                <!-- Recent Entries -->
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                    <h3 class="font-bold mb-4">Recent Entries</h3>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full">
+                            <thead>
+                                <tr>
+                                    <th class="header-cell">Type</th>
+                                    <th class="header-cell">Number</th>
+                                    <th class="header-cell">Maintenance</th>
+                                    <th class="header-cell">Description</th>
+                                    <th class="header-cell">Status</th>
+                                    <th class="header-cell">Date</th>
+                                </tr>
+                            </thead>
+                            <tbody id="recent-entries">
+                                <!-- Recent entries will be added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Wagon Data Tab -->
+            <div id="wagon-data" class="tab-content hidden">
+                <div class="mb-4 flex justify-between items-center">
+                    <h2 class="text-xl font-bold">Wagon Maintenance Data</h2>
+                    <div class="flex space-x-2">
+                        <button onclick="exportData('wagon')" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded">
+                            Export
+                        </button>
+                        <button onclick="showTab('dashboard')" class="bg-primary hover:bg-purple-700 text-white font-medium py-2 px-4 rounded">
+                            Add New
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                    <div class="mb-4">
+                        <input type="text" id="wagon-search" placeholder="Search wagon data..." class="w-full text-base" oninput="filterTable('wagon-search', 'wagon-table')">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full" id="wagon-table">
+                            <thead>
+                                <tr>
+                                    <th class="header-cell">Number</th>
+                                    <th class="header-cell">Maintenance</th>
+                                    <th class="header-cell">Description</th>
+                                    <th class="header-cell">Fault</th>
+                                    <th class="header-cell">Spare Parts</th>
+                                    <th class="header-cell">Status</th>
+                                    <th class="header-cell">Remarks</th>
+                                    <th class="header-cell">Date</th>
+                                    <th class="header-cell">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="wagon-data-body">
+                                <!-- Wagon data will be added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Locomotive Data Tab -->
+            <div id="locomotive-data" class="tab-content hidden">
+                <div class="mb-4 flex justify-between items-center">
+                    <h2 class="text-xl font-bold">Locomotive Maintenance Data</h2>
+                    <div class="flex space-x-2">
+                        <button onclick="exportData('locomotive')" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded">
+                            Export
+                        </button>
+                        <button onclick="showTab('dashboard')" class="bg-primary hover:bg-purple-700 text-white font-medium py-2 px-4 rounded">
+                            Add New
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                    <div class="mb-4">
+                        <input type="text" id="locomotive-search" placeholder="Search locomotive data..." class="w-full text-base" oninput="filterTable('locomotive-search', 'locomotive-table')">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full" id="locomotive-table">
+                            <thead>
+                                <tr>
+                                    <th class="header-cell">Number</th>
+                                    <th class="header-cell">Maintenance</th>
+                                    <th class="header-cell">Description</th>
+                                    <th class="header-cell">Fault</th>
+                                    <th class="header-cell">Spare Parts</th>
+                                    <th class="header-cell">Status</th>
+                                    <th class="header-cell">Remarks</th>
+                                    <th class="header-cell">Date</th>
+                                    <th class="header-cell">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="locomotive-data-body">
+                                <!-- Locomotive data will be added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Coach Data Tab -->
+            <div id="coach-data" class="tab-content hidden">
+                <div class="mb-4 flex justify-between items-center">
+                    <h2 class="text-xl font-bold">Coach Maintenance Data</h2>
+                    <div class="flex space-x-2">
+                        <button onclick="exportData('coach')" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded">
+                            Export
+                        </button>
+                        <button onclick="showTab('dashboard')" class="bg-primary hover:bg-purple-700 text-white font-medium py-2 px-4 rounded">
+                            Add New
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow">
+                    <div class="mb-4">
+                        <input type="text" id="coach-search" placeholder="Search coach data..." class="w-full text-base" oninput="filterTable('coach-search', 'coach-table')">
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full" id="coach-table">
+                            <thead>
+                                <tr>
+                                    <th class="header-cell">Number</th>
+                                    <th class="header-cell">Maintenance</th>
+                                    <th class="header-cell">Description</th>
+                                    <th class="header-cell">Fault</th>
+                                    <th class="header-cell">Spare Parts</th>
+                                    <th class="header-cell">Status</th>
+                                    <th class="header-cell">Remarks</th>
+                                    <th class="header-cell">Date</th>
+                                    <th class="header-cell">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="coach-data-body">
+                                <!-- Coach data will be added here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Report Tab -->
+            <div id="report" class="tab-content hidden">
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold mb-4">Generate Reports</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                        <div>
+                            <label class="block mb-1">Report Type</label>
+                            <select id="report-type" class="w-full text-base">
+                                <option value="all">All Maintenance</option>
+                                <option value="wagon">Wagon Maintenance</option>
+                                <option value="locomotive">Locomotive Maintenance</option>
+                                <option value="coach">Coach Maintenance</option>
+                                <option value="status">Status-based</option>
+                                <option value="maintenance">Maintenance Type</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block mb-1">Date Range</label>
+                            <select id="date-range" class="w-full text-base">
+                                <option value="all">All Time</option>
+                                <option value="today">Today</option>
+                                <option value="week">This Week</option>
+                                <option value="month">This Month</option>
+                                <option value="quarter">This Quarter</option>
+                                <option value="year">This Year</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block mb-1">Status Filter</label>
+                            <select id="status-filter" class="w-full text-base">
+                                <option value="all">All Status</option>
+                                <option value="Pending">Pending</option>
+                                <option value="In Progress">In Progress</option>
+                                <option value="Completed">Completed</option>
+                                <option value="Rejected">Rejected</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="flex justify-end">
+                        <button onclick="generateReport()" class="bg-primary hover:bg-purple-700 text-white font-medium py-2 px-4 rounded">
+                            Generate Report
+                        </button>
+                    </div>
+                </div>
+                
+                <div id="report-output" class="hidden">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold" id="report-title">Report</h3>
+                        <div>
+                            <button onclick="printReport()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded">
+                                Print Report
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-6">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                            <div class="bg-blue-100 dark:bg-blue-900 p-3 rounded">
+                                <h4 class="font-medium mb-1">Total Records</h4>
+                                <p class="text-2xl font-bold" id="report-total">0</p>
+                            </div>
+                            <div class="bg-green-100 dark:bg-green-900 p-3 rounded">
+                                <h4 class="font-medium mb-1">Completed</h4>
+                                <p class="text-2xl font-bold" id="report-completed">0</p>
+                            </div>
+                            <div class="bg-yellow-100 dark:bg-yellow-900 p-3 rounded">
+                                <h4 class="font-medium mb-1">Pending/In Progress</h4>
+                                <p class="text-2xl font-bold" id="report-pending">0</p>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div>
+                                <h4 class="font-medium mb-2">Status Distribution</h4>
+                                <div class="h-64">
+                                    <canvas id="report-status-chart"></canvas>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="font-medium mb-2">Type Distribution</h4>
+                                <div class="h-64">
+                                    <canvas id="report-type-chart"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <h4 class="font-medium mb-2">Report Details</h4>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full" id="report-table">
+                                    <thead>
+                                        <tr>
+                                            <th class="header-cell">Type</th>
+                                            <th class="header-cell">Number</th>
+                                            <th class="header-cell">Maintenance</th>
+                                            <th class="header-cell">Description</th>
+                                            <th class="header-cell">Status</th>
+                                            <th class="header-cell">Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="report-data">
+                                        <!-- Report data will be added here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VBA-like JavaScript Logic -->
+    <script>
+        // Data storage (simulating Excel sheets)
+        let wagonData = [];
+        let locomotiveData = [];
+        let coachData = [];
+        
+        // Charts
+        let statusChart;
+        let maintenanceChart;
+        let reportStatusChart;
+        let reportTypeChart;
+        
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+            document.getElementById('data-entry-form').addEventListener('submit', handleFormSubmit);
+            
+            // Load sample data for demonstration
+            loadSampleData();
+            updateDashboard();
+        });
+        
+        // Tab switching function
+        function showTab(tabName) {
+            // Hide all tab contents
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.add('hidden');
+            });
+            
+            // Reset tab button styles
+            document.querySelectorAll('[id$="-tab"]').forEach(button => {
+                button.classList.remove('text-primary', 'border-b-2', 'border-primary');
+                button.classList.add('text-gray-500', 'dark:text-gray-400');
+            });
+            
+            // Show selected tab content
+            document.getElementById(tabName).classList.remove('hidden');
+            
+            // Highlight selected tab button
+            const tabButton = document.getElementById(tabName + '-tab');
+            tabButton.classList.remove('text-gray-500', 'dark:text-gray-400');
+            tabButton.classList.add('text-primary', 'border-b-2', 'border-primary');
+        }
+        
+        // Initialize charts
+        function initializeCharts() {
+            // Status Chart
+            const statusCtx = document.getElementById('status-chart').getContext('2d');
+            statusChart = new Chart(statusCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Pending', 'In Progress', 'Completed', 'Rejected'],
+                    datasets: [{
+                        data: [0, 0, 0, 0],
+                        backgroundColor: ['#FCD34D', '#60A5FA', '#34D399', '#F87171']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                color: document.documentElement.classList.contains('dark') ? 'white' : 'black'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Maintenance Type Chart
+            const maintenanceCtx = document.getElementById('maintenance-chart').getContext('2d');
+            maintenanceChart = new Chart(maintenanceCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Routine', 'Preventive', 'Corrective', 'Overhaul'],
+                    datasets: [{
+                        label: 'Maintenance Types',
+                        data: [0, 0, 0, 0],
+                        backgroundColor: '#5D5CDE'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: document.documentElement.classList.contains('dark') ? 'white' : 'black'
+                            },
+                            grid: {
+                                color: document.documentElement.classList.contains('dark') ? '#4B5563' : '#E5E7EB'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: document.documentElement.classList.contains('dark') ? 'white' : 'black'
+                            },
+                            grid: {
+                                color: document.documentElement.classList.contains('dark') ? '#4B5563' : '#E5E7EB'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Handle form submission
+        function handleFormSubmit(e) {
+            e.preventDefault();
+            
+            // Get form values
+            const entryType = document.getElementById('entry-type').value;
+            const number = document.getElementById('number').value;
+            const maintenanceType = document.getElementById('maintenance-type').value;
+            const description = document.getElementById('description').value;
+            const fault = document.getElementById('fault').value;
+            const spareParts = document.getElementById('spare-parts').value;
+            const status = document.getElementById('status').value;
+            const remarks = document.getElementById('remarks').value;
+            
+            // Create entry object
+            const newEntry = {
+                id: generateId(),
+                number: number,
+                maintenanceType: maintenanceType,
+                description: description,
+                fault: fault,
+                spareParts: spareParts,
+                status: status,
+                remarks: remarks,
+                date: new Date().toISOString().split('T')[0]
+            };
+            
+            // Add to appropriate data array
+            if (entryType === 'wagon') {
+                wagonData.push(newEntry);
+                renderTableData(wagonData, 'wagon-data-body');
+            } else if (entryType === 'locomotive') {
+                locomotiveData.push(newEntry);
+                renderTableData(locomotiveData, 'locomotive-data-body');
+            } else if (entryType === 'coach') {
+                coachData.push(newEntry);
+                renderTableData(coachData, 'coach-data-body');
+            }
+            
+            // Reset form
+            document.getElementById('data-entry-form').reset();
+            
+            // Update dashboard
+            updateDashboard();
+            
+            // Show success message
+            alert('Data saved successfully!');
+        }
+        
+        // Generate unique ID
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+        
+        // Update dashboard
+        function updateDashboard() {
+            // Update counters
+            document.getElementById('wagon-count').textContent = wagonData.length;
+            document.getElementById('locomotive-count').textContent = locomotiveData.length;
+            document.getElementById('coach-count').textContent = coachData.length;
+            
+            // Update recent entries table
+            updateRecentEntries();
+            
+            // Update charts
+            updateCharts();
+        }
+        
+        // Update recent entries table
+        function updateRecentEntries() {
+            const recentEntriesElement = document.getElementById('recent-entries');
+            recentEntriesElement.innerHTML = '';
+            
+            // Combine and sort all data by date (newest first)
+            const allData = [
+                ...wagonData.map(item => ({...item, type: 'Wagon'})),
+                ...locomotiveData.map(item => ({...item, type: 'Locomotive'})),
+                ...coachData.map(item => ({...item, type: 'Coach'}))
+            ].sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            // Display only the 10 most recent entries
+            const recentData = allData.slice(0, 10);
+            
+            recentData.forEach(entry => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="cell">${entry.type}</td>
+                    <td class="cell">${entry.number}</td>
+                    <td class="cell">${entry.maintenanceType}</td>
+                    <td class="cell">${entry.description}</td>
+                    <td class="cell">
+                        <span class="px-2 py-1 rounded text-xs font-medium ${getStatusClass(entry.status)}">
+                            ${entry.status}
+                        </span>
+                    </td>
+                    <td class="cell">${entry.date}</td>
+                `;
+                recentEntriesElement.appendChild(row);
+            });
+        }
+        
+        // Get status class for coloring
+        function getStatusClass(status) {
+            switch(status) {
+                case 'Pending':
+                    return 'bg-yellow-200 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-200';
+                case 'In Progress':
+                    return 'bg-blue-200 text-blue-800 dark:bg-blue-800 dark:text-blue-200';
+                case 'Completed':
+                    return 'bg-green-200 text-green-800 dark:bg-green-800 dark:text-green-200';
+                case 'Rejected':
+                    return 'bg-red-200 text-red-800 dark:bg-red-800 dark:text-red-200';
+                default:
+                    return 'bg-gray-200 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
+            }
+        }
+        
+        // Update charts
+        function updateCharts() {
+            // Combine all data
+            const allData = [
+                ...wagonData,
+                ...locomotiveData,
+                ...coachData
+            ];
+            
+            // Status counts
+            const statusCounts = {
+                'Pending': 0,
+                'In Progress': 0,
+                'Completed': 0,
+                'Rejected': 0
+            };
+            
+            // Maintenance type counts
+            const maintenanceCounts = {
+                'Routine': 0,
+                'Preventive': 0,
+                'Corrective': 0,
+                'Overhaul': 0
+            };
+            
+            // Count occurrences
+            allData.forEach(item => {
+                if (statusCounts.hasOwnProperty(item.status)) {
+                    statusCounts[item.status]++;
+                }
+                
+                if (maintenanceCounts.hasOwnProperty(item.maintenanceType)) {
+                    maintenanceCounts[item.maintenanceType]++;
+                }
+            });
+            
+            // Update status chart
+            statusChart.data.datasets[0].data = [
+                statusCounts['Pending'],
+                statusCounts['In Progress'],
+                statusCounts['Completed'],
+                statusCounts['Rejected']
+            ];
+            statusChart.update();
+            
+            // Update maintenance chart
+            maintenanceChart.data.datasets[0].data = [
+                maintenanceCounts['Routine'],
+                maintenanceCounts['Preventive'],
+                maintenanceCounts['Corrective'],
+                maintenanceCounts['Overhaul']
+            ];
+            maintenanceChart.update();
+        }
+        
+        // Render table data
+        function renderTableData(data, tableBodyId) {
+            const tableBody = document.getElementById(tableBodyId);
+            tableBody.innerHTML = '';
+            
+            data.forEach(entry => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="cell">${entry.number}</td>
+                    <td class="cell">${entry.maintenanceType}</td>
+                    <td class="cell">${entry.description}</td>
+                    <td class="cell">${entry.fault}</td>
+                    <td class="cell">${entry.spareParts || '-'}</td>
+                    <td class="cell">
+                        <span class="px-2 py-1 rounded text-xs font-medium ${getStatusClass(entry.status)}">
+                            ${entry.status}
+                        </span>
+                    </td>
+                    <td class="cell">${entry.remarks || '-'}</td>
+                    <td class="cell">${entry.date}</td>
+                    <td class="cell">
+                        <button onclick="editEntry('${entry.id}', '${tableBodyId.split('-')[0]}')" 
+                                class="text-blue-600 dark:text-blue-400 hover:underline mr-2">
+                            Edit
+                        </button>
+                        <button onclick="deleteEntry('${entry.id}', '${tableBodyId.split('-')[0]}')" 
+                                class="text-red-600 dark:text-red-400 hover:underline">
+                            Delete
+                        </button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+        
+        // Edit entry
+        function editEntry(id, type) {
+            let dataArray;
+            let entry;
+            
+            if (type === 'wagon') {
+                dataArray = wagonData;
+                entry = wagonData.find(item => item.id === id);
+            } else if (type === 'locomotive') {
+                dataArray = locomotiveData;
+                entry = locomotiveData.find(item => item.id === id);
+            } else if (type === 'coach') {
+                dataArray = coachData;
+                entry = coachData.find(item => item.id === id);
+            }
+            
+            if (!entry) return;
+            
+            // Show edit form (for simplicity, we'll reuse the main form)
+            showTab('dashboard');
+            
+            // Fill the form with entry data
+            document.getElementById('entry-type').value = type;
+            document.getElementById('number').value = entry.number;
+            document.getElementById('maintenance-type').value = entry.maintenanceType;
+            document.getElementById('description').value = entry.description;
+            document.getElementById('fault').value = entry.fault;
+            document.getElementById('spare-parts').value = entry.spareParts || '';
+            document.getElementById('status').value = entry.status;
+            document.getElementById('remarks').value = entry.remarks || '';
+            
+            // Remove the old entry
+            if (type === 'wagon') {
+                wagonData = wagonData.filter(item => item.id !== id);
+            } else if (type === 'locomotive') {
+                locomotiveData = locomotiveData.filter(item => item.id !== id);
+            } else if (type === 'coach') {
+                coachData = coachData.filter(item => item.id !== id);
+            }
+            
+            // Note: When the form is submitted, a new entry will be created
+        }
+        
+        // Delete entry
+        function deleteEntry(id, type) {
+            if (!confirm('Are you sure you want to delete this entry?')) return;
+            
+            if (type === 'wagon') {
+                wagonData = wagonData.filter(item => item.id !== id);
+                renderTableData(wagonData, 'wagon-data-body');
+            } else if (type === 'locomotive') {
+                locomotiveData = locomotiveData.filter(item => item.id !== id);
+                renderTableData(locomotiveData, 'locomotive-data-body');
+            } else if (type === 'coach') {
+                coachData = coachData.filter(item => item.id !== id);
+                renderTableData(coachData, 'coach-data-body');
+            }
+            
+            updateDashboard();
+        }
+        
+        // Filter table
+        function filterTable(inputId, tableId) {
+            const input = document.getElementById(inputId);
+            const filter = input.value.toUpperCase();
+            const table = document.getElementById(tableId);
+            const rows = table.getElementsByTagName('tr');
+            
+            // Loop through all table rows, and hide those that don't match the search query
+            for (let i = 1; i < rows.length; i++) { // Start from 1 to skip the header row
+                let found = false;
+                const cells = rows[i].getElementsByTagName('td');
+                
+                for (let j = 0; j < cells.length - 1; j++) { // Skip the last column (actions)
+                    const cell = cells[j];
+                    if (cell) {
+                        const textValue = cell.textContent || cell.innerText;
+                        if (textValue.toUpperCase().indexOf(filter) > -1) {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                
+                rows[i].style.display = found ? '' : 'none';
+            }
+        }
+        
+        // Export data
+        function exportData(type) {
+            let dataArray;
+            let filename;
+            
+            if (type === 'wagon') {
+                dataArray = wagonData;
+                filename = 'wagon_maintenance_data.csv';
+            } else if (type === 'locomotive') {
+                dataArray = locomotiveData;
+                filename = 'locomotive_maintenance_data.csv';
+            } else if (type === 'coach') {
+                dataArray = coachData;
+                filename = 'coach_maintenance_data.csv';
+            }
+            
+            if (!dataArray || dataArray.length === 0) {
+                alert('No data to export');
+                return;
+            }
+            
+            // Create CSV content
+            const headers = ['Number', 'Maintenance Type', 'Description', 'Fault', 'Spare Parts', 'Status', 'Remarks', 'Date'];
+            let csvContent = headers.join(',') + '\n';
+            
+            dataArray.forEach(item => {
+                const row = [
+                    `"${item.number}"`,
+                    `"${item.maintenanceType}"`,
+                    `"${item.description}"`,
+                    `"${item.fault}"`,
+                    `"${item.spareParts || ''}"`,
+                    `"${item.status}"`,
+                    `"${item.remarks || ''}"`,
+                    `"${item.date}"`
+                ];
+                csvContent += row.join(',') + '\n';
+            });
+            
+            // Create a temporary textarea to copy the CSV content
+            const textarea = document.createElement('textarea');
+            textarea.value = csvContent;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            
+            alert('CSV data copied to clipboard. You can now paste it into a text editor or spreadsheet application.');
+        }
+        
+        // Generate report
+        function generateReport() {
+            const reportType = document.getElementById('report-type').value;
+            const dateRange = document.getElementById('date-range').value;
+            const statusFilter = document.getElementById('status-filter').value;
+            
+            // Get filtered data
+            let filteredData = [];
+            
+            if (reportType === 'all' || reportType === 'status' || reportType === 'maintenance') {
+                filteredData = [
+                    ...wagonData.map(item => ({...item, type: 'Wagon'})),
+                    ...locomotiveData.map(item => ({...item, type: 'Locomotive'})),
+                    ...coachData.map(item => ({...item, type: 'Coach'}))
+                ];
+            } else if (reportType === 'wagon') {
+                filteredData = wagonData.map(item => ({...item, type: 'Wagon'}));
+            } else if (reportType === 'locomotive') {
+                filteredData = locomotiveData.map(item => ({...item, type: 'Locomotive'}));
+            } else if (reportType === 'coach') {
+                filteredData = coachData.map(item => ({...item, type: 'Coach'}));
+            }
+            
+            // Apply date filter
+            if (dateRange !== 'all') {
+                const today = new Date();
+                let startDate;
+                
+                if (dateRange === 'today') {
+                    startDate = new Date(today.setHours(0, 0, 0, 0));
+                } else if (dateRange === 'week') {
+                    startDate = new Date(today.setDate(today.getDate() - today.getDay()));
+                } else if (dateRange === 'month') {
+                    startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+                } else if (dateRange === 'quarter') {
+                    const quarter = Math.floor(today.getMonth() / 3);
+                    startDate = new Date(today.getFullYear(), quarter * 3, 1);
+                } else if (dateRange === 'year') {
+                    startDate = new Date(today.getFullYear(), 0, 1);
+                }
+                
+                filteredData = filteredData.filter(item => {
+                    const itemDate = new Date(item.date);
+                    return itemDate >= startDate;
+                });
+            }
+            
+            // Apply status filter
+            if (statusFilter !== 'all') {
+                filteredData = filteredData.filter(item => item.status === statusFilter);
+            }
+            
+            // Generate report title
+            let reportTitle = 'Maintenance Report: ';
+            
+            if (reportType === 'all') {
+                reportTitle += 'All Equipment';
+            } else if (reportType === 'wagon') {
+                reportTitle += 'Wagon';
+            } else if (reportType === 'locomotive') {
+                reportTitle += 'Locomotive';
+            } else if (reportType === 'coach') {
+                reportTitle += 'Coach';
+            } else if (reportType === 'status') {
+                reportTitle += 'Status-based';
+            } else if (reportType === 'maintenance') {
+                reportTitle += 'Maintenance Type';
+            }
+            
+            if (dateRange !== 'all') {
+                reportTitle += ` (${dateRange.charAt(0).toUpperCase() + dateRange.slice(1)})`;
+            }
+            
+            if (statusFilter !== 'all') {
+                reportTitle += ` - ${statusFilter} Status`;
+            }
+            
+            document.getElementById('report-title').textContent = reportTitle;
+            
+            // Count status
+            const completedCount = filteredData.filter(item => item.status === 'Completed').length;
+            const pendingCount = filteredData.filter(item => 
+                item.status === 'Pending' || item.status === 'In Progress'
+            ).length;
+            
+            document.getElementById('report-total').textContent = filteredData.length;
+            document.getElementById('report-completed').textContent = completedCount;
+            document.getElementById('report-pending').textContent = pendingCount;
+            
+            // Render report table
+            const reportDataElement = document.getElementById('report-data');
+            reportDataElement.innerHTML = '';
+            
+            filteredData.forEach(entry => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="cell">${entry.type}</td>
+                    <td class="cell">${entry.number}</td>
+                    <td class="cell">${entry.maintenanceType}</td>
+                    <td class="cell">${entry.description}</td>
+                    <td class="cell">
+                        <span class="px-2 py-1 rounded text-xs font-medium ${getStatusClass(entry.status)}">
+                            ${entry.status}
+                        </span>
+                    </td>
+                    <td class="cell">${entry.date}</td>
+                `;
+                reportDataElement.appendChild(row);
+            });
+            
+            // Generate charts for the report
+            generateReportCharts(filteredData);
+            
+            // Show report output
+            document.getElementById('report-output').classList.remove('hidden');
+        }
+        
+        // Generate report charts
+        function generateReportCharts(data) {
+            // Status counts
+            const statusCounts = {
+                'Pending': 0,
+                'In Progress': 0,
+                'Completed': 0,
+                'Rejected': 0
+            };
+            
+            // Type counts (Equipment type or Maintenance type based on report)
+            const typeCounts = {
+                'Wagon': 0,
+                'Locomotive': 0,
+                'Coach': 0
+            };
+            
+            // Count occurrences
+            data.forEach(item => {
+                if (statusCounts.hasOwnProperty(item.status)) {
+                    statusCounts[item.status]++;
+                }
+                
+                if (typeCounts.hasOwnProperty(item.type)) {
+                    typeCounts[item.type]++;
+                }
+            });
+            
+            // Create or update report status chart
+            if (reportStatusChart) {
+                reportStatusChart.destroy();
+            }
+            
+            const reportStatusCtx = document.getElementById('report-status-chart').getContext('2d');
+            reportStatusChart = new Chart(reportStatusCtx, {
+                type: 'pie',
+                data: {
+                    labels: ['Pending', 'In Progress', 'Completed', 'Rejected'],
+                    datasets: [{
+                        data: [
+                            statusCounts['Pending'],
+                            statusCounts['In Progress'],
+                            statusCounts['Completed'],
+                            statusCounts['Rejected']
+                        ],
+                        backgroundColor: ['#FCD34D', '#60A5FA', '#34D399', '#F87171']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                color: document.documentElement.classList.contains('dark') ? 'white' : 'black'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Create or update report type chart
+            if (reportTypeChart) {
+                reportTypeChart.destroy();
+            }
+            
+            const reportTypeCtx = document.getElementById('report-type-chart').getContext('2d');
+            reportTypeChart = new Chart(reportTypeCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Wagon', 'Locomotive', 'Coach'],
+                    datasets: [{
+                        label: 'Equipment Types',
+                        data: [
+                            typeCounts['Wagon'],
+                            typeCounts['Locomotive'],
+                            typeCounts['Coach']
+                        ],
+                        backgroundColor: '#5D5CDE'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: document.documentElement.classList.contains('dark') ? 'white' : 'black'
+                            },
+                            grid: {
+                                color: document.documentElement.classList.contains('dark') ? '#4B5563' : '#E5E7EB'
+                            }
+                        },
+                        x: {
+                            ticks: {
+                                color: document.documentElement.classList.contains('dark') ? 'white' : 'black'
+                            },
+                            grid: {
+                                color: document.documentElement.classList.contains('dark') ? '#4B5563' : '#E5E7EB'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Print report
+        function printReport() {
+            window.print();
+        }
+        
+        // Load sample data for demonstration
+        function loadSampleData() {
+            // Sample wagon data
+            wagonData = [
+                {
+                    id: 'w1',
+                    number: 'WG-1001',
+                    maintenanceType: 'Routine',
+                    description: 'Regular inspection',
+                    fault: 'Brake wear',
+                    spareParts: 'Brake pads',
+                    status: 'Completed',
+                    remarks: 'Replaced brake pads',
+                    date: '2023-06-15'
+                },
+                {
+                    id: 'w2',
+                    number: 'WG-1002',
+                    maintenanceType: 'Corrective',
+                    description: 'Emergency repair',
+                    fault: 'Axle damage',
+                    spareParts: 'Bearing assembly',
+                    status: 'Completed',
+                    remarks: 'Replaced damaged bearings',
+                    date: '2023-07-22'
+                },
+                {
+                    id: 'w3',
+                    number: 'WG-1003',
+                    maintenanceType: 'Preventive',
+                    description: 'Scheduled maintenance',
+                    fault: 'Coupling wear',
+                    spareParts: 'Coupling mechanism',
+                    status: 'In Progress',
+                    remarks: 'Parts on order',
+                    date: '2023-08-10'
+                }
+            ];
+            
+            // Sample locomotive data
+            locomotiveData = [
+                {
+                    id: 'l1',
+                    number: 'LC-5001',
+                    maintenanceType: 'Overhaul',
+                    description: 'Major overhaul',
+                    fault: 'Engine performance',
+                    spareParts: 'Piston rings, gaskets',
+                    status: 'Completed',
+                    remarks: 'Complete engine rebuild',
+                    date: '2023-05-18'
+                },
+                {
+                    id: 'l2',
+                    number: 'LC-5002',
+                    maintenanceType: 'Routine',
+                    description: 'Regular inspection',
+                    fault: 'Electrical system',
+                    spareParts: 'Wiring harness',
+                    status: 'Pending',
+                    remarks: 'Scheduled for next week',
+                    date: '2023-07-30'
+                }
+            ];
+            
+            // Sample coach data
+            coachData = [
+                {
+                    id: 'c1',
+                    number: 'CH-3001',
+                    maintenanceType: 'Corrective',
+                    description: 'AC repair',
+                    fault: 'Air conditioning failure',
+                    spareParts: 'Compressor, coolant',
+                    status: 'Completed',
+                    remarks: 'Replaced compressor',
+                    date: '2023-06-28'
+                },
+                {
+                    id: 'c2',
+                    number: 'CH-3002',
+                    maintenanceType: 'Preventive',
+                    description: 'Interior inspection',
+                    fault: 'Seat damage',
+                    spareParts: 'Seat cushions, covers',
+                    status: 'In Progress',
+                    remarks: 'Replacing damaged seats',
+                    date: '2023-08-05'
+                },
+                {
+                    id: 'c3',
+                    number: 'CH-3003',
+                    maintenanceType: 'Routine',
+                    description: 'Safety check',
+                    fault: 'Emergency brake system',
+                    spareParts: 'Brake valves',
+                    status: 'Rejected',
+                    remarks: 'Needs complete brake system overhaul',
+                    date: '2023-08-12'
+                },
+                {
+                    id: 'c4',
+                    number: 'CH-3004',
+                    maintenanceType: 'Overhaul',
+                    description: 'Complete renovation',
+                    fault: 'Multiple systems',
+                    spareParts: 'Various components',
+                    status: 'Pending',
+                    remarks: 'Waiting for budget approval',
+                    date: '2023-08-15'
+                }
+            ];
+            
+            // Render tables
+            renderTableData(wagonData, 'wagon-data-body');
+            renderTableData(locomotiveData, 'locomotive-data-body');
+            renderTableData(coachData, 'coach-data-body');
+        }
+    </script>
+
+
+</body></html>
